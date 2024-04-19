@@ -35,8 +35,7 @@ jobs:
       - name: Set environment variables
         id: set-env
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}:$SHORT_SHA"
+          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}:latest"
           echo "::set-output name=BRANCH::${{ env.BRANCH }}"
 
   dockerize-and-push-do:
@@ -74,8 +73,8 @@ jobs:
       - name: Build and push Docker Image
         run: |
           IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          docker build --platform=linux/amd64 -t reyshazni/$IMAGE_NAME:latest .
-          docker push reyshazni/$IMAGE_NAME:latest
+          docker build --platform=linux/amd64 -t reyshazni/$IMAGE_NAME .
+          docker push reyshazni/$IMAGE_NAME
         env:
           IMAGE_TAG: ${{ needs.setup-environment.outputs.IMAGE_TAG }}
 
