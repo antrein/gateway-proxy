@@ -35,7 +35,7 @@ jobs:
       - name: Set environment variables
         id: set-env
         run: |
-          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}:latest"
+          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}"
           echo "::set-output name=BRANCH::${{ env.BRANCH }}"
 
   dockerize-and-push-do:
