@@ -1,0 +1,37 @@
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.allow-http: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/configuration-snippet: "more_set_headers \"Access-Control-Allow-Origin:
+      $http_origin\";\n# add_header Access-Control-Allow-Origin $http_origin;\nadd_header
+      Access-Control-Allow-Methods \"PUT,POST, GET, OPTIONS, PATCH\";\nmore_set_headers
+      \"Access-Control-Allow-Credentials: true\";\nmore_set_headers \"Access-Control-Expose-Headers:
+      *\";\nadd_header Access-Control-Allow-Headers \"DNT,X-CustomHeader,X-LANG,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,X-Api-Key,X-Device-Id,Access-Control-Allow-Origin,econolab-uid-authorization,authorization,authorization-v2,api-key,base-url,method,path\";
+      \   \n"
+    nginx.ingress.kubernetes.io/proxy-body-size: 3M
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  name: reverse-proxy
+  namespace: test
+spec:
+  ingressClassName: nginx
+  rules:
+  rules:
+  - host: fdc.antrein.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: reverse-proxy
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - fdc.antrein.com
+    secretName: test-tls
