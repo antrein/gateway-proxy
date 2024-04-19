@@ -63,9 +63,9 @@ jobs:
           echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
           echo "::set-output name=BRANCH::${{ env.BRANCH }}"
 
-      - name: Create secret
-        run: |
-          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
+      # - name: Create secret
+      #   run: |
+      #     echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
 
       - name: Test secret
         run: |
