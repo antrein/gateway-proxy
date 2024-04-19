@@ -1,0 +1,191 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - staging
+  pull_request:
+    branches:
+      - master
+      - main
+      - staging
+    types: [closed]
+
+env:
+  PROJECT_NAME: ${{ github.event.repository.name }}
+  PORT: 8080
+  BRANCH: ${{ github.ref == 'refs/heads/staging' && 'staging' || 'production' }}
+  REGISTRY_REPO: antrein
+
+  GCP_REGION: asia-southeast1
+  GCP_ZONE: asia-southeast1-a
+
+  AWS_REGION: asia-southeast-1
+
+jobs:
+  setup-environment:
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+      BRANCH: ${{ steps.set-env.outputs.BRANCH }}
+    steps:
+      - name: Set environment variables
+        id: set-env
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}:$SHORT_SHA"
+          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+
+  dockerize-and-push-do:
+    needs: setup-environment
+    if: vars.CLOUD_PLATFORM == 'do'
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+      BRANCH: ${{ steps.set-env.outputs.BRANCH }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+
+      - name: Login Docker
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pass env
+        id: set-env
+        run: |
+          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+
+      - name: Create secret
+        run: |
+          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
+
+      - name: Test secret
+        run: |
+          cat ./files/secrets/secrets.config.json
+
+      - name: Build and push Docker Image
+        run: |
+          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          docker build -t reyshazni/$IMAGE_NAME .
+          docker push reyshazni/$IMAGE_NAME
+        env:
+          IMAGE_TAG: ${{ needs.setup-environment.outputs.IMAGE_TAG }}
+
+  dockerize-and-push-gcp:
+    needs: setup-environment
+    if: vars.CLOUD_PLATFORM == 'gcp'
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ vars.GCP_SA_KEY }}
+
+      - name: Pass env
+        id: set-env
+        run: |
+          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+
+      - name: Create secret
+        run: |
+          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
+          cat ./files/secrets/secrets.config.json
+
+      - name: Login Docker
+        run: |
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build and push Docker Image
+        run: |
+          DOCKER_PATH="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}"
+          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+
+          docker build -t $DOCKER_PATH/$IMAGE_NAME .
+          docker push $DOCKER_PATH/$IMAGE_NAME
+  
+  dockerize-and-push-aws:
+    needs: setup-environment
+    if: vars.CLOUD_PLATFORM == 'aws'
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{env.AWS_REGION}}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pass env
+        id: set-env
+        run: |
+          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+
+      - name: Create secret
+        run: |
+          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
+          cat ./files/secrets/secrets.config.json
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}        
+        run: |
+          DOCKER_PATH="$ECR_REGISTRY/${{ env.REGISTRY_REPO }}"
+          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+
+          docker build -t $DOCKER_PATH/$IMAGE_NAME  .
+          docker push $DOCKER_PATH/$IMAGE_NAME
+
+
+  dockerize-and-push-azure:
+    needs: setup-environment
+    if: vars.CLOUD_PLATFORM == 'azure'
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Pass env
+        id: set-env
+        run: |
+          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+
+      - name: Create secret
+        run: |
+          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
+          cat ./files/secrets/secrets.config.json
