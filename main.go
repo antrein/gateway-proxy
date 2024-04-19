@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	target := os.Getenv("NGINX_SERVICE_URL")
+	target := os.Getenv("SERVICE_URL")
 	proxyUrl, err := url.Parse(target)
 	if err != nil {
 		panic(err)
