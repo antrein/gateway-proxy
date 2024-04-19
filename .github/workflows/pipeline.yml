@@ -74,7 +74,7 @@ jobs:
       - name: Build and push Docker Image
         run: |
           IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          docker build -t reyshazni/$IMAGE_NAME .
+          docker build --platform=linux/amd64 -t reyshazni/$IMAGE_NAME .
           docker push reyshazni/$IMAGE_NAME
         env:
           IMAGE_TAG: ${{ needs.setup-environment.outputs.IMAGE_TAG }}
