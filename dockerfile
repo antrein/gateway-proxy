@@ -11,15 +11,15 @@ COPY . .
 RUN go mod tidy
 
 # Build the application
-RUN go build -o sidecar-proxy
+RUN go build -o gateway-proxy
 
 # Use a smaller image to run the compiled application
 FROM alpine:latest  
 
 WORKDIR /root/
 
-COPY --from=builder /app/sidecar-proxy .
+COPY --from=builder /app/gateway-proxy .
 
 EXPOSE 8080
 
-CMD ["./sidecar-proxy"]
+CMD ["./gateway-proxy"]
