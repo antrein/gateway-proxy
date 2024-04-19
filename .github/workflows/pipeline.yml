@@ -67,9 +67,9 @@ jobs:
       #   run: |
       #     echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
 
-      - name: Test secret
-        run: |
-          cat ./files/secrets/secrets.config.json
+      # - name: Test secret
+      #   run: |
+      #     cat ./files/secrets/secrets.config.json
 
       - name: Build and push Docker Image
         run: |
