@@ -1,4 +1,4 @@
-name: Backend CI/CD Pipeline
+name: Golang CI/CD Pipeline
 
 on:
   push:
@@ -30,22 +30,24 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
-      BRANCH: ${{ steps.set-env.outputs.BRANCH }}
+      IMAGE_NAME: ${{ steps.set-env.outputs.IMAGE_NAME }}
+      SHORT_SHA: ${{ steps.set-env.outputs.SHORT_SHA }}
+      BRANCH: ${{ env.BRANCH }}
     steps:
       - name: Set environment variables
         id: set-env
         run: |
-          echo "::set-output name=IMAGE_TAG::${{ env.BRANCH }}"
-          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE_TAG="${{ env.BRANCH }}:$SHORT_SHA"
+          IMAGE_NAME="reyshazni/${{ github.event.repository.name }}-$IMAGE_TAG"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
-  dockerize-and-push-do:
+  dockerize-and-push:
     needs: setup-environment
-    if: vars.CLOUD_PLATFORM == 'do'
     environment: ${{ needs.setup-environment.outputs.BRANCH }}
     runs-on: ubuntu-latest
-    outputs:
-      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
-      BRANCH: ${{ steps.set-env.outputs.BRANCH }}
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
@@ -56,135 +58,147 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Pass env
-        id: set-env
-        run: |
-          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
-
-      # - name: Create secret
-      #   run: |
-      #     echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
-
-      # - name: Test secret
-      #   run: |
-      #     cat ./files/secrets/secrets.config.json
-
       - name: Build and push Docker Image
+        env: 
+          IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
         run: |
-          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          docker build --platform=linux/amd64 -t reyshazni/$IMAGE_NAME .
-          docker push reyshazni/$IMAGE_NAME
-        env:
-          IMAGE_TAG: ${{ needs.setup-environment.outputs.IMAGE_TAG }}
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
-  dockerize-and-push-gcp:
-    needs: setup-environment
+  deploy-to-server-gcp:
+    needs: [setup-environment, dockerize-and-push]
     if: vars.CLOUD_PLATFORM == 'gcp'
-    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     runs-on: ubuntu-latest
-    outputs:
-      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
+
+      - name: Prepare deployment file
+        env: 
+          IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
+          SHORT_SHA: ${{ needs.setup-environment.outputs.SHORT_SHA }}
+        run: |
+          sed -i "s|<PROJECT_NAME>|${{ env.PROJECT_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<IMAGE_NAME>|${{ env.IMAGE_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<VERSION>|${{ env.SHORT_SHA }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<PORT>|${{ env.PORT }}|g" k8s/${{ env.BRANCH }}.yml
+          cat k8s/${{ env.BRANCH }}.yml
 
       - id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ vars.GCP_SA_KEY }}
 
-      - name: Pass env
-        id: set-env
-        run: |
-          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+      - name: Connect to cluster
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ vars.GCP_CLUSTER_NAME }}
+          location: ${{ env.GCP_ZONE }}
 
-      - name: Create secret
+      - name: Deploy
         run: |
-          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
-          cat ./files/secrets/secrets.config.json
+          kubectl apply -f k8s/${{ env.BRANCH }}.yml
 
-      - name: Login Docker
+      - name: Push YAML to another GitHub repo
+        if: github.ref != 'refs/heads/staging'
+        env:
+          GIT_USER: reyshazni
+          GIT_TOKEN: ${{ vars.GIT_PAT }}
+          GIT_EMAIL: reyshazni@gmail.com
         run: |
-          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.GCP_REGION }}-docker.pkg.dev
+          git config --global user.email ${GIT_EMAIL}
+          git config --global user.name ${GIT_USER}
+          git clone https://github.com/antrein/prod-yml.git
+          cp ./k8s/${{ env.BRANCH }}.yml ./prod-yml/${{ vars.CONFIG_BE_MODE }}/${{ env.PROJECT_NAME }}.yml
+          cd ./prod-yml
+          git add .
+          git commit -m "Update Kubernetes YAML file"
+          git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
 
-      - name: Build and push Docker Image
-        run: |
-          DOCKER_PATH="${{ env.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}"
-          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-
-          docker build -t $DOCKER_PATH/$IMAGE_NAME .
-          docker push $DOCKER_PATH/$IMAGE_NAME
-  
-  dockerize-and-push-aws:
-    needs: setup-environment
+  deploy-to-server-aws:
+    needs: [setup-environment, dockerize-and-push]
     if: vars.CLOUD_PLATFORM == 'aws'
-    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     runs-on: ubuntu-latest
-    outputs:
-      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
+
+      - name: Prepare deployment file
+        env: 
+          IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
+          SHORT_SHA: ${{ needs.setup-environment.outputs.SHORT_SHA }}
+        run: |
+          sed -i "s|<PROJECT_NAME>|${{ env.PROJECT_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<IMAGE_NAME>|${{ env.IMAGE_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<VERSION>|${{ env.SHORT_SHA }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<PORT>|${{ env.PORT }}|g" k8s/${{ env.BRANCH }}.yml
+          cat k8s/${{ env.BRANCH }}.yml
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{env.AWS_REGION}}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+      - name: Update kube config
+        run: aws eks update-kubeconfig --name  ${{ env.AWS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-      - name: Pass env
-        id: set-env
+      - name: Deploy to EKS
         run: |
-          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+          kubectl apply -f k8s/${{ env.BRANCH }}.yml
 
-      - name: Create secret
-        run: |
-          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
-          cat ./files/secrets/secrets.config.json
-
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Push YAML to another GitHub repo
+        if: github.ref != 'refs/heads/staging'
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}        
+          GIT_USER: reyshazni
+          GIT_TOKEN: ${{ vars.GIT_PAT }}
+          GIT_EMAIL: reyshazni@gmail.com
         run: |
-          DOCKER_PATH="$ECR_REGISTRY/${{ env.REGISTRY_REPO }}"
-          IMAGE_NAME="${{ github.event.repository.name }}-${{ needs.setup-environment.outputs.IMAGE_TAG }}"
+          git config --global user.email ${GIT_EMAIL}
+          git config --global user.name ${GIT_USER}
+          git clone https://github.com/antrein/prod-yml.git
+          cp ./k8s/${{ env.BRANCH }}.yml ./prod-yml/${{ vars.CONFIG_BE_MODE }}/${{ env.PROJECT_NAME }}.yml
+          cd ./prod-yml
+          git add .
+          git commit -m "Update Kubernetes YAML file"
+          git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
 
-          docker build -t $DOCKER_PATH/$IMAGE_NAME  .
-          docker push $DOCKER_PATH/$IMAGE_NAME
-
-
-  dockerize-and-push-azure:
-    needs: setup-environment
+  deploy-to-server-azure:
+    needs: [setup-environment, dockerize-and-push]
     if: vars.CLOUD_PLATFORM == 'azure'
-    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     runs-on: ubuntu-latest
-    outputs:
-      IMAGE_TAG: ${{ steps.set-env.outputs.IMAGE_TAG }}
+    environment: ${{ needs.setup-environment.outputs.BRANCH }}
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Pass env
-        id: set-env
+      - name: Prepare deployment file
+        env: 
+          IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
+          SHORT_SHA: ${{ needs.setup-environment.outputs.SHORT_SHA }}
         run: |
-          echo "::set-output name=IMAGE_TAG::${{ needs.setup-environment.outputs.IMAGE_TAG }}"
-          echo "::set-output name=BRANCH::${{ env.BRANCH }}"
+          sed -i "s|<PROJECT_NAME>|${{ env.PROJECT_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<IMAGE_NAME>|${{ env.IMAGE_NAME }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<VERSION>|${{ env.SHORT_SHA }}|g" k8s/${{ env.BRANCH }}.yml
+          sed -i "s|<PORT>|${{ env.PORT }}|g" k8s/${{ env.BRANCH }}.yml
+          cat k8s/${{ env.BRANCH }}.yml
 
-      - name: Create secret
+      - name: Push YAML to another GitHub repo
+        if: github.ref != 'refs/heads/staging'
+        env:
+          GIT_USER: reyshazni
+          GIT_TOKEN: ${{ vars.GIT_PAT }}
+          GIT_EMAIL: reyshazni@gmail.com
         run: |
-          echo '${{ vars.ENV }}' > ./files/secrets/secrets.config.json
-          cat ./files/secrets/secrets.config.json
+          git config --global user.email ${GIT_EMAIL}
+          git config --global user.name ${GIT_USER}
+          git clone https://github.com/antrein/prod-yml.git
+          cp ./k8s/${{ env.BRANCH }}.yml ./prod-yml/${{ vars.CONFIG_BE_MODE }}/${{ env.PROJECT_NAME }}.yml
+          cd ./prod-yml
+          git add .
+          git commit -m "Update Kubernetes YAML file"
+          git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
