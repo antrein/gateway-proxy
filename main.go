@@ -32,16 +32,8 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("projectID", projectID)
-		if err != nil {
-			serveErrorHTML(w, "URL not registered")
-			return
-		}
-
 		htmlURL := strings.Replace(html_base_url, "{project_id}", projectID, 1)
-		fmt.Println("htmlUrl", htmlURL)
 		htmlContent, err := fetchHTMLContent(htmlURL)
-		fmt.Println("htmlContent", htmlContent)
 		if err != nil {
 			serveErrorHTML(w, "Failed to fetch HTML content")
 			return
@@ -67,17 +59,6 @@ func main() {
 
 	http.ListenAndServe(":8080", nil)
 }
-
-// func extractProjectID(url string) (string, error) {
-// 	fmt.Println("host:" + url)
-// 	re := regexp.MustCompile(`https?://([^.]+)\.antrein\.com`)
-// 	matches := re.FindStringSubmatch(url)
-// 	fmt.Println("matches", matches)
-// 	if len(matches) < 2 {
-// 		return "", fmt.Errorf("URL not registered")
-// 	}
-// 	return matches[1], nil
-// }
 
 func authorizationCheck(authToken, secret, projectID string) bool {
 	token, err := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
@@ -121,18 +102,38 @@ func isValidToken(token, secret, projectID string) bool {
 	}
 }
 
+func loadDefaultHTML() (string, error) {
+	filePath := "template.html"
+	htmlFile, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer htmlFile.Close()
+
+	content, err := io.ReadAll(htmlFile)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
+
 func fetchHTMLContent(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println("error fetching 1", err)
 		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
+
 	if err != nil {
-		fmt.Println("error fetching 2", err)
 		return "", err
 	}
+
+	if strings.Contains(string(body), "The specified key does not exist.") {
+		return loadDefaultHTML()
+	}
+
 	return string(body), nil
 }
 
