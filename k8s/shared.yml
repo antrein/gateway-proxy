@@ -1,0 +1,79 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-proxy-<project_id>
+  namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-proxy-<project_id>
+  template:
+    metadata:
+      labels:
+        app: gateway-proxy-<project_id>
+    spec:
+      containers:
+      - name: gateway-proxy
+        image: reyshazni/gateway-proxy-production:<version>
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVICE_URL
+          value: "https://<project_domain>"
+        - name: TOKEN_SECRET
+          value: "CTPVqgse4sEwcPXEKUYXXeZhioDb5BnM"
+        - name: PROJECT_ID
+          value: <project_id>
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-proxy-<project_id>
+  namespace: production
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: gateway-proxy-<project_id>
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.allow-http: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/proxy-body-size: 3M
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Access-Control-Allow-Origin: $http_origin";
+      # add_header Access-Control-Allow-Origin $http_origin;
+      add_header Access-Control-Allow-Methods "PUT,POST, GET, OPTIONS, PATCH";
+      more_set_headers "Access-Control-Allow-Credentials: true";
+      more_set_headers "Access-Control-Expose-Headers: *";
+      add_header Access-Control-Allow-Headers "DNT,X-CustomHeader,X-LANG,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,X-Api-Key,X-Device-Id,Access-Control-Allow-Origin,econolab-uid-authorization,authorization,authorization-v2,api-key,base-url,method,path";    
+  name: gateway-proxy-<project_id>
+  namespace: production
+spec:
+  ingressClassName: nginx
+  rules:
+  rules:
+  - host: <project_id>.antrein.com
+    http:
+      paths:
+      - path: <url_path>
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-proxy-<project_id>
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - <project_id>.antrein.com
+    secretName: <project_id>-redirect-tls

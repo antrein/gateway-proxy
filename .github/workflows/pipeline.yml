@@ -38,7 +38,7 @@ jobs:
         id: set-env
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          IMAGE_TAG="${{ env.BRANCH }}"
+          IMAGE_TAG="${{ env.BRANCH }}:${{ env.SHORT_SHA }}"
           IMAGE_NAME="reyshazni/${{ github.event.repository.name }}-$IMAGE_TAG"
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
@@ -65,3 +65,20 @@ jobs:
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+
+          - name: Push YAML to another GitHub repo
+          if: github.ref != 'refs/heads/staging'
+          env:
+            GIT_USER: reyshazni
+            GIT_TOKEN: ${{ vars.GIT_PAT }}
+            GIT_EMAIL: reyshazni@gmail.com
+          run: |
+            git config --global user.email ${GIT_EMAIL}
+            git config --global user.name ${GIT_USER}
+            git clone https://github.com/antrein/prod-yml.git
+            cp ./k8s/multi.yml ./prod-yml/gateway-proxy/multi.yml
+            cp ./k8s/shared.yml ./prod-yml/gateway-proxy/shared.yml
+            cd ./prod-yml
+            git add .
+            git commit -m "Update Kubernetes YAML file"
+            git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
