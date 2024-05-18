@@ -40,6 +40,7 @@ func main() {
 		}
 
 		htmlURL := strings.Replace(html_base_url, "{project_id}", projectID, 1)
+		fmt.Println(htmlURL)
 		htmlContent, err := fetchHTMLContent(htmlURL)
 		if err != nil {
 			serveErrorHTML(w, "Failed to fetch HTML content")
