@@ -14,11 +14,15 @@ RUN go mod tidy
 RUN go build -o gateway-proxy
 
 # Use a smaller image to run the compiled application
-FROM alpine:latest  
+FROM alpine:latest
 
 WORKDIR /root/
 
+# Copy the built application from the builder stage
 COPY --from=builder /app/gateway-proxy .
+
+# Copy HTML files into the container
+COPY --from=builder /app/template.html ./template.html
 
 EXPOSE 8080
 
