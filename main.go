@@ -33,6 +33,9 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		host := r.Referer()
+		if host == "" {
+			return
+		}
 		projectID, err := extractProjectID(host)
 		fmt.Println("projectID", projectID)
 		if err != nil {
