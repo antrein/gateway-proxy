@@ -19,6 +19,11 @@ env:
   BRANCH: ${{ github.ref == 'refs/heads/staging' && 'staging' || 'production' }}
   REGISTRY_REPO: antrein
 
+  GCP_REGION: asia-southeast1
+  GCP_ZONE: asia-southeast1-a
+
+  AWS_REGION: asia-southeast-1
+
 jobs:
   setup-environment:
     if: github.event.pull_request.merged == false
@@ -33,7 +38,7 @@ jobs:
         id: set-env
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          IMAGE_TAG="${{ env.BRANCH }}:$SHORT_SHA"
+          IMAGE_TAG="${{ env.BRANCH }}"
           IMAGE_NAME="reyshazni/${{ github.event.repository.name }}-$IMAGE_TAG"
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_OUTPUT
@@ -60,12 +65,3 @@ jobs:
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
-
-      - name: Tag and push as latest
-        env: 
-          IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
-          LATEST_IMAGE_NAME: "reyshazni/${{ github.event.repository.name }}:latest"
-        run: |
-          docker tag $IMAGE_NAME $LATEST_IMAGE_NAME
-          docker push $LATEST_IMAGE_NAME
-          echo "LATEST_IMAGE_NAME=$LATEST_IMAGE_NAME" >> $GITHUB_OUTPUT
