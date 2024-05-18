@@ -7,6 +7,9 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func main() {
@@ -78,37 +81,37 @@ func extractProjectID(url string) (string, error) {
 }
 
 func authorizationCheck(authToken, secret, projectID string) bool {
-	// token, err := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
-	// 	return []byte(secret), nil
-	// })
+	token, err := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
 
-	// if err != nil || !token.Valid {
-	// 	return false
-	// }
+	if err != nil || !token.Valid {
+		return false
+	}
 
-	// claims, ok := token.Claims.(jwt.MapClaims)
-	// if !ok {
-	// 	return false
-	// }
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return false
+	}
 
-	// if exp, ok := claims["exp"].(float64); ok {
-	// 	if time.Unix(int64(exp), 0).Before(time.Now()) {
-	// 		return false
-	// 	}
-	// } else {
-	// 	return false
-	// }
+	if exp, ok := claims["exp"].(float64); ok {
+		if time.Unix(int64(exp), 0).Before(time.Now()) {
+			return false
+		}
+	} else {
+		return false
+	}
 
-	// tokenProjectID, ok := claims["project_id"].(string)
-	// if !ok {
-	// 	return false
-	// }
+	tokenProjectID, ok := claims["project_id"].(string)
+	if !ok {
+		return false
+	}
 
-	// if tokenProjectID != projectID {
-	// 	return false
-	// }
+	if tokenProjectID != projectID {
+		return false
+	}
 
-	return authToken == "valid-token"
+	return true
 }
 
 func isValidToken(token, secret, projectID string) bool {
