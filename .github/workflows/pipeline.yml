@@ -66,19 +66,19 @@ jobs:
           docker push $IMAGE_NAME
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
-          - name: Push YAML to another GitHub repo
-          if: github.ref != 'refs/heads/staging'
-          env:
-            GIT_USER: reyshazni
-            GIT_TOKEN: ${{ vars.GIT_PAT }}
-            GIT_EMAIL: reyshazni@gmail.com
-          run: |
-            git config --global user.email ${GIT_EMAIL}
-            git config --global user.name ${GIT_USER}
-            git clone https://github.com/antrein/prod-yml.git
-            cp ./k8s/multi.yml ./prod-yml/gateway-proxy/multi.yml
-            cp ./k8s/shared.yml ./prod-yml/gateway-proxy/shared.yml
-            cd ./prod-yml
-            git add .
-            git commit -m "Update Kubernetes YAML file"
-            git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
+      - name: Push YAML to another GitHub repo
+        if: github.ref != 'refs/heads/staging'
+        env:
+          GIT_USER: reyshazni
+          GIT_TOKEN: ${{ vars.GIT_PAT }}
+          GIT_EMAIL: reyshazni@gmail.com
+        run: |
+          git config --global user.email ${GIT_EMAIL}
+          git config --global user.name ${GIT_USER}
+          git clone https://github.com/antrein/prod-yml.git
+          cp ./k8s/multi.yml ./prod-yml/gateway-proxy/multi.yml
+          cp ./k8s/shared.yml ./prod-yml/gateway-proxy/shared.yml
+          cd ./prod-yml
+          git add .
+          git commit -m "Update Kubernetes YAML file"
+          git push https://${GIT_USER}:${GIT_TOKEN}@github.com/antrein/prod-yml.git
