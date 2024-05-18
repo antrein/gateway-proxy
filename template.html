@@ -54,30 +54,5 @@
             Estimated time remaining: <span id="countdown">30</span> seconds.
         </div>
     </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // var logoUrl = queryParams.get('logo');
-            // var baseColor = queryParams.get('color');
-
-            // if (baseColor) {
-            //     document.documentElement.style.setProperty('--base-color', baseColor);
-            // }
-
-            // // Customize logo
-            // if (logoUrl) {
-            //     document.getElementById('logo').src = logoUrl;
-            // }
-
-            async function queue() {
-                try{
-                    const req = await fetch('https://api.antrein.com/bc/queue/register')
-                    console.log(req)
-                }
-                catch(e) {}
-            }
-        
-            queue()
-        });
-    </script>
 </body>
 </html>
