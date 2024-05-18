@@ -16,7 +16,7 @@ import (
 func main() {
 	infra_mode := os.Getenv("INFRA_MODE")
 	token_secret := os.Getenv("TOKEN_SECRET")
-	projectID := "yandy4"
+	projectID := os.Getenv("PROJECT_ID")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
 	var target string
 
@@ -172,7 +172,11 @@ func addScriptHTML(htmlContent, projectID string) string {
 		}, 1000);
 	}
 
-	registerQueue();
+	if (!hasCookie('antrein_authorization') && !hasCookie('antrein_waiting_room')) {
+		registerQueue();
+	} else if (!hasCookie('antrein_authorization') && hasCookie('antrein_waiting_room')) {
+		startCountdown(30);
+	}
     </script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
