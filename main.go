@@ -7,7 +7,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 func main() {
 	infra_mode := os.Getenv("INFRA_MODE")
 	token_secret := os.Getenv("TOKEN_SECRET")
+	projectID := os.Getenv("PROJECT_ID")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
 	var target string
 
@@ -32,11 +32,6 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		host := r.Referer()
-		if host == "" {
-			return
-		}
-		projectID, err := extractProjectID(host)
 		fmt.Println("projectID", projectID)
 		if err != nil {
 			serveErrorHTML(w, "URL not registered")
@@ -73,16 +68,16 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func extractProjectID(url string) (string, error) {
-	fmt.Println("host:" + url)
-	re := regexp.MustCompile(`https?://([^.]+)\.antrein\.com`)
-	matches := re.FindStringSubmatch(url)
-	fmt.Println("matches", matches)
-	if len(matches) < 2 {
-		return "", fmt.Errorf("URL not registered")
-	}
-	return matches[1], nil
-}
+// func extractProjectID(url string) (string, error) {
+// 	fmt.Println("host:" + url)
+// 	re := regexp.MustCompile(`https?://([^.]+)\.antrein\.com`)
+// 	matches := re.FindStringSubmatch(url)
+// 	fmt.Println("matches", matches)
+// 	if len(matches) < 2 {
+// 		return "", fmt.Errorf("URL not registered")
+// 	}
+// 	return matches[1], nil
+// }
 
 func authorizationCheck(authToken, secret, projectID string) bool {
 	token, err := jwt.Parse(authToken, func(token *jwt.Token) (interface{}, error) {
