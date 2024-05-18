@@ -57,7 +57,7 @@ func main() {
 		}
 	})
 
-	http.ListenAndServe(":9080", nil)
+	http.ListenAndServe(":8080", nil)
 }
 
 func authorizationCheck(authToken, secret, projectID string) bool {
