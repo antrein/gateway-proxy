@@ -58,6 +58,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Create k8s File
+        env: 
+          SHORT_SHA: ${{ needs.setup-environment.outputs.SHORT_SHA }}
+        run:
+          sed -i "s|<version>|${SHORT_SHA}|g" k8s/multi.yml
+          sed -i "s|<version>|${SHORT_SHA}|g" k8s/shared.yml
+
       - name: Build and push Docker Image
         env: 
           IMAGE_NAME: ${{ needs.setup-environment.outputs.IMAGE_NAME }}
