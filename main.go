@@ -8,7 +8,15 @@ import (
 )
 
 func main() {
-	target := os.Getenv("SERVICE_URL")
+	infra_mode := os.Getenv("INFRA_MODE")
+
+	var target string
+
+	if infra_mode == "multi" {
+		target = os.Getenv("SERVICE_URL")
+	} else {
+		target = os.Getenv("SERVICE_URL") // ubah jadi get url data dari db
+	}
 	proxyUrl, err := url.Parse(target)
 	if err != nil {
 		panic(err)
