@@ -44,8 +44,9 @@ func main() {
 		}
 
 		htmlURL := strings.Replace(html_base_url, "{project_id}", projectID, 1)
-		fmt.Println(htmlURL)
+		fmt.Println("htmlUrl", htmlURL)
 		htmlContent, err := fetchHTMLContent(htmlURL)
+		fmt.Println("htmlContent", htmlContent)
 		if err != nil {
 			serveErrorHTML(w, "Failed to fetch HTML content")
 			return
@@ -128,11 +129,13 @@ func isValidToken(token, secret, projectID string) bool {
 func fetchHTMLContent(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
+		fmt.Println("error fetching 1", err)
 		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		fmt.Println("error fetching 2", err)
 		return "", err
 	}
 	return string(body), nil
