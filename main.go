@@ -16,7 +16,7 @@ import (
 func main() {
 	infra_mode := os.Getenv("INFRA_MODE")
 	token_secret := os.Getenv("TOKEN_SECRET")
-	projectID := os.Getenv("PROJECT_ID")
+	projectID := "yandy4"
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
 	var target string
 
@@ -33,16 +33,16 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		htmlURL := strings.Replace(html_base_url, "{project_id}", projectID, 1)
-		htmlContent, err := fetchHTMLContent(htmlURL)
+		html, err := fetchHTMLContent(htmlURL)
 		if err != nil {
 			serveErrorHTML(w, "Failed to fetch HTML content")
 			return
 		}
-		script := getScriptHTML(projectID)
+		htmlContent := addScriptHTML(html, projectID)
 		auth, err := r.Cookie("antrein_authorization")
 		if err != nil || auth == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write([]byte(htmlContent + script))
+			w.Write([]byte(htmlContent))
 			return
 		}
 
@@ -52,12 +52,12 @@ func main() {
 			proxy.ServeHTTP(w, r)
 		} else {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write([]byte(htmlContent + script))
+			w.Write([]byte(htmlContent))
 			return
 		}
 	})
 
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":9080", nil)
 }
 
 func authorizationCheck(authToken, secret, projectID string) bool {
@@ -118,67 +118,63 @@ func loadDefaultHTML() (string, error) {
 	return string(content), nil
 }
 
-func getScriptHTML(projectID string) string {
-	script := fmt.Sprintf(`
+func addScriptHTML(htmlContent, projectID string) string {
+	script := `
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const cookies = document.cookie;
-        const cookieMap = new Map(cookies.split('; ').map(cookie => cookie.split('=')));
+	const url = window.location.href;
+	console.log(url);
+	const cookies = document.cookie;
+	const cookieMap = new Map(cookies.split('; ').map(cookie => cookie.split('=')));
 
-        function hasCookie(name) {
-            return cookieMap.has(name) && cookieMap.get(name) !== '';
-        }
+	function hasCookie(name) {
+		return cookieMap.has(name) && cookieMap.get(name) !== '';
+	}
 
-        async function registerQueue() {
-            try {
-                const response = await fetch('https://api.antrein.com/bc/queue/register?project_id=%s');
-                if (!response.ok) {
-                    throw new Error('HTTP error! status: ' + response.status);
-                }
-                const data = await response.json();
-                if (data.status === 200) {
-                    const tokens = data.data;
-                    if (tokens.main_room_token !== "") {
-                        document.cookie = 'antrein_authorization=' + tokens.main_room_token + '; path=/; SameSite=Lax';
-                    }
-                    if (tokens.waiting_room_token !== "") {
-                        document.cookie = 'antrein_waiting_room=' + tokens.waiting_room_token + '; path=/; SameSite=Lax';
-                    }
-                    console.log('Cookies updated:', document.cookie);
-                }
-            } catch (e) {
-                console.error('Error during registration:', e);
-            }
-        }
+	async function registerQueue() {
+		try {
+			const response = await fetch('https://api.antrein.com/bc/queue/register?project_id={project_id}');
+			if (!response.ok) {
+				throw new Error('HTTP error! status: ' + response.status);
+			}
+			const data = await response.json();
+			if (data.status === 200) {
+				const tokens = data.data;
+				if (tokens.main_room_token !== "") {
+					document.cookie = 'antrein_authorization=' + tokens.main_room_token + '; path=/; SameSite=Lax';
+				}
+				if (tokens.waiting_room_token !== "") {
+					document.cookie = 'antrein_waiting_room=' + tokens.waiting_room_token + '; path=/; SameSite=Lax';
+				}
+				console.log('Cookies updated:', document.cookie);
+			}
+		} catch (e) {
+			console.error('Error during registration:', e);
+		}
+	}
 
-        function startCountdown(duration) {
-            let timer = duration, minutes, seconds;
-            const countdownElement = document.getElementById('countdown');
-            const intervalId = setInterval(function () {
-                minutes = parseInt(timer / 60, 10);
-                seconds = parseInt(timer % 60, 10);
+	function startCountdown(duration) {
+		let timer = duration, minutes, seconds;
+		const countdownElement = document.getElementById('countdown');
+		const intervalId = setInterval(function () {
+			minutes = parseInt(timer / 60, 10);
+			seconds = parseInt(timer % 60, 10);
 
-                minutes = minutes < 10 ? "0" + minutes : minutes;
-                seconds = seconds < 10 ? "0" + seconds : seconds;
+			minutes = minutes < 10 ? "0" + minutes : minutes;
+			seconds = seconds < 10 ? "0" + seconds : seconds;
 
-                countdownElement.textContent = minutes + ":" + seconds;
+			countdownElement.textContent = minutes + ":" + seconds;
 
-                if (--timer < 0) {
-                    clearInterval(intervalId);
-                    countdownElement.textContent = '00:00';
-                    window.location.reload();
-                }
-            }, 1000);
-        }
+			if (--timer < 0) {
+				clearInterval(intervalId);
+				countdownElement.textContent = '00:00';
+				window.location.reload();
+			}
+		}, 1000);
+	}
 
-        if (!hasCookie('antrein_authorization') && !hasCookie('antrein_waiting_room')) {
-            registerQueue();
-        } else if (!hasCookie('antrein_authorization') && hasCookie('antrein_waiting_room')) {
-            startCountdown(30);
-        }
-    });
-    </script>`, projectID)
-	return script
+	registerQueue();
+    </script>`
+	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
 
 func fetchHTMLContent(url string) (string, error) {
