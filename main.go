@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -34,7 +34,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		host := r.Referer()
 		projectID, err := extractProjectID(host)
-		fmt.Println(projectID)
+		fmt.Println("projectID", projectID)
 		if err != nil {
 			serveErrorHTML(w, "URL not registered")
 			return
@@ -70,12 +70,13 @@ func main() {
 }
 
 func extractProjectID(url string) (string, error) {
+	fmt.Println("host:" + url)
 	re := regexp.MustCompile(`https?://([^.]+)\.antrein\.com`)
 	matches := re.FindStringSubmatch(url)
+	fmt.Println("matches", matches)
 	if len(matches) < 2 {
 		return "", fmt.Errorf("URL not registered")
 	}
-	fmt.Println(matches)
 	return matches[1], nil
 }
 
@@ -127,7 +128,7 @@ func fetchHTMLContent(url string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
