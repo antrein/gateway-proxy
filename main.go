@@ -45,12 +45,13 @@ func main() {
 		if err != nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write([]byte(htmlContent))
-
+			return
 		}
 		auth, err := r.Cookie("antrein_authorization")
-		if err != nil {
+		if err != nil || auth == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write([]byte(htmlContent))
+			return
 		}
 
 		if isValidToken(auth.Value, token_secret, projectID) {
@@ -60,6 +61,7 @@ func main() {
 		} else {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write([]byte(htmlContent))
+			return
 		}
 	})
 
