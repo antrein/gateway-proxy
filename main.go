@@ -34,6 +34,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		host := r.Referer()
 		projectID, err := extractProjectID(host)
+		fmt.Println(projectID)
 		if err != nil {
 			serveErrorHTML(w, "URL not registered")
 			return
@@ -74,6 +75,7 @@ func extractProjectID(url string) (string, error) {
 	if len(matches) < 2 {
 		return "", fmt.Errorf("URL not registered")
 	}
+	fmt.Println(matches)
 	return matches[1], nil
 }
 
