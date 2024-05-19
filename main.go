@@ -184,7 +184,7 @@ func addScriptHTML(htmlContent, projectID string) string {
             const data = JSON.parse(event.data);
             if (data){
                 countdown.innerHTML = formatDuration(data.time_remaining || 0)
-                if (data.main_room_token && data.main_room_token != "" && data.isFinished) {
+                if (data.main_room_token && data.main_room_token != "" && data.is_finished) {
 					document.cookie = 'antrein_authorization=' + data.main_room_token + '; path=/; SameSite=Lax';
                     window.location.reload();
                 }
