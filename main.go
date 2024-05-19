@@ -51,8 +51,23 @@ func main() {
 			proxy := httputil.NewSingleHostReverseProxy(proxyUrl)
 			proxy.ServeHTTP(w, r)
 		} else {
+			deleteCookieScript := `<script>
+				function deleteAllCookies() {
+					const cookies = document.cookie.split(";");
+				
+					for (let i = 0; i < cookies.length; i++) {
+						const cookie = cookies[i];
+						const eqPos = cookie.indexOf("=");
+						const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+						document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+					}
+				}
+
+				deleteAllCookies()
+			</script>
+			`
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write([]byte(htmlContent))
+			w.Write([]byte(htmlContent + deleteCookieScript))
 			return
 		}
 	})
