@@ -123,10 +123,15 @@ func addScriptHTML(htmlContent, projectID string) string {
     <script>
 	const cookies = document.cookie;
 	const cookieMap = new Map(cookies.split('; ').map(cookie => cookie.split('=')));
-    const countdown = document.getElementById('countdown');
 
 	function hasCookie(name) {
 		return cookieMap.has(name) && cookieMap.get(name) !== '';
+	}
+
+	function updateLastUpdated() {
+		const now = new Date();
+		const formatted = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric' });
+		document.getElementById('lastUpdated').textContent = 'Last updated: ' + formatted;
 	}
 
     function formatDuration(minutes) {
@@ -169,6 +174,7 @@ func addScriptHTML(htmlContent, projectID string) string {
 					document.cookie = 'antrein_waiting_room=' + tokens.waiting_room_token + '; path=/; SameSite=Lax';
 				}
 				console.log('Cookies updated:', document.cookie);
+				window.location.reload();
 			}
 		} catch (e) {
 			console.error('Error during registration:', e);
@@ -183,14 +189,17 @@ func addScriptHTML(htmlContent, projectID string) string {
         source.onmessage = function(event) {
             const data = JSON.parse(event.data);
             if (data){
-                countdown.innerHTML = formatDuration(data.time_remaining || 0)
+                countdown.innerHTML = formatDuration(data.time_remaining)
                 if (data.main_room_token && data.main_room_token != "" && data.is_finished) {
 					document.cookie = 'antrein_authorization=' + data.main_room_token + '; path=/; SameSite=Lax';
                     window.location.reload();
                 }
             }
+			setInterval(window.location.reload(), 10000);
         };
 	}
+
+	updateLastUpdated();
 </script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
