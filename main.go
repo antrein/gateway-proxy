@@ -195,11 +195,11 @@ func addScriptHTML(htmlContent, projectID string) string {
                     window.location.reload();
                 }
             }
-			setInterval(window.location.reload(), 10000);
         };
 	}
 
 	updateLastUpdated();
+	setInterval(window.location.reload(), 10000);
 </script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
