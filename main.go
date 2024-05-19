@@ -121,14 +121,37 @@ func loadDefaultHTML() (string, error) {
 func addScriptHTML(htmlContent, projectID string) string {
 	script := `
     <script>
-	const url = window.location.href;
-	console.log(url);
 	const cookies = document.cookie;
 	const cookieMap = new Map(cookies.split('; ').map(cookie => cookie.split('=')));
+    const countdown = document.getElementById('countdown');
 
 	function hasCookie(name) {
 		return cookieMap.has(name) && cookieMap.get(name) !== '';
 	}
+
+    function formatDuration(minutes) {
+        if (minutes < 0) {
+            return "0 minutes"
+        }
+
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+
+        let result = "";
+
+        if (hours > 0) {
+            result += hours + " " + "hour" + hours > 1 ? 's' : ''
+            if (remainingMinutes > 0) {
+                result += " ";
+            }
+        }
+
+        if (remainingMinutes > 0) {
+            result += remainingMinutes + " " + "minute" + remainingMinutes > 1 ? 's' : '';
+        }
+
+        return result || "0 minutes";
+    }
 
 	async function registerQueue() {
 		try {
@@ -152,32 +175,23 @@ func addScriptHTML(htmlContent, projectID string) string {
 		}
 	}
 
-	function startCountdown(duration) {
-		let timer = duration, minutes, seconds;
-		const countdownElement = document.getElementById('countdown');
-		const intervalId = setInterval(function () {
-			minutes = parseInt(timer / 60, 10);
-			seconds = parseInt(timer % 60, 10);
-
-			minutes = minutes < 10 ? "0" + minutes : minutes;
-			seconds = seconds < 10 ? "0" + seconds : seconds;
-
-			countdownElement.textContent = minutes + ":" + seconds;
-
-			if (--timer < 0) {
-				clearInterval(intervalId);
-				countdownElement.textContent = '00:00';
-				window.location.reload();
-			}
-		}, 1000);
-	}
-
 	if (!hasCookie('antrein_authorization') && !hasCookie('antrein_waiting_room')) {
 		registerQueue();
 	} else if (!hasCookie('antrein_authorization') && hasCookie('antrein_waiting_room')) {
-		startCountdown(30);
+        const token = cookieMap.get('antrein_waiting_room');
+		const source = new EventSource("https://api.antrein.com/bc/queue/wr?token="+token);
+        source.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data){
+                countdown.innerHTML = formatDuration(data.time_remaining || 0)
+                if (data.main_room_token && data.main_room_token != "" && data.isFinished) {
+					document.cookie = 'antrein_authorization=' + data.main_room_token + '; path=/; SameSite=Lax';
+                    window.location.reload();
+                }
+            }
+        };
 	}
-    </script>`
+</script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
 
