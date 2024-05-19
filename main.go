@@ -167,14 +167,13 @@ func addScriptHTML(htmlContent, projectID string) string {
 			const data = await response.json();
 			if (data.status === 200) {
 				const tokens = data.data;
-				if (tokens.main_room_token !== "") {
-					document.cookie = 'antrein_authorization=' + tokens.main_room_token + '; path=/; SameSite=Lax';
-				}
 				if (tokens.waiting_room_token !== "") {
 					document.cookie = 'antrein_waiting_room=' + tokens.waiting_room_token + '; path=/; SameSite=Lax';
+				}				
+				if (tokens.main_room_token !== "") {
+					document.cookie = 'antrein_authorization=' + tokens.main_room_token + '; path=/; SameSite=Lax';
+					window.location.reload();
 				}
-				console.log('Cookies updated:', document.cookie);
-				window.location.reload();
 			}
 		} catch (e) {
 			console.error('Error during registration:', e);
@@ -199,7 +198,6 @@ func addScriptHTML(htmlContent, projectID string) string {
 	}
 
 	updateLastUpdated();
-	setInterval(window.location.reload(), 10000);
 </script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
