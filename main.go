@@ -149,6 +149,10 @@ func addScriptHTML(htmlContent, projectID string) string {
 		document.getElementById('lastUpdated').textContent = 'Last updated: ' + formatted;
 	}
 
+	function refreshFunction() {
+		window.location.reload();
+	}
+
     function formatDuration(minutes) {
         if (minutes < 0) {
             return "0 minutes"
@@ -160,14 +164,14 @@ func addScriptHTML(htmlContent, projectID string) string {
         let result = "";
 
         if (hours > 0) {
-            result += hours + " " + "hour" + hours > 1 ? 's' : ''
+            result += hours + " " + "hour" + (hours > 1 ? 's' : '')
             if (remainingMinutes > 0) {
                 result += " ";
             }
         }
 
         if (remainingMinutes > 0) {
-            result += remainingMinutes + " " + "minute" + remainingMinutes > 1 ? 's' : '';
+            result += remainingMinutes + " " + "minute" + (remainingMinutes > 1 ? 's' : '');
         }
 
         return result || "0 minutes";
@@ -184,6 +188,9 @@ func addScriptHTML(htmlContent, projectID string) string {
 				const tokens = data.data;
 				if (tokens.waiting_room_token !== "") {
 					document.cookie = 'antrein_waiting_room=' + tokens.waiting_room_token + '; path=/; SameSite=Lax';
+					setTimeout(() => {
+						refreshFunction();
+					}, 5000);
 				}				
 				if (tokens.main_room_token !== "") {
 					document.cookie = 'antrein_authorization=' + tokens.main_room_token + '; path=/; SameSite=Lax';
@@ -213,6 +220,14 @@ func addScriptHTML(htmlContent, projectID string) string {
 	}
 
 	updateLastUpdated();
+
+	window.onload = function() {
+		setTimeout(() => {
+			refreshFunction();
+	
+			setInterval(refreshFunction, 10000);
+		}, 10000);
+	};
 </script>`
 	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
 }
