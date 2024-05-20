@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -18,6 +19,7 @@ func main() {
 	token_secret := os.Getenv("TOKEN_SECRET")
 	projectID := os.Getenv("PROJECT_ID")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
+
 	var target string
 
 	if infra_mode == "multi" {
@@ -25,6 +27,8 @@ func main() {
 	} else {
 		target = os.Getenv("SERVICE_URL") // ubah jadi get url data dari db
 	}
+
+	log.Printf("Starting reverse proxy from to %s", target)
 
 	proxyUrl, err := url.Parse(target)
 	if err != nil {
