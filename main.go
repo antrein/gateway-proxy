@@ -53,6 +53,13 @@ func main() {
 		if isValidToken(auth.Value, token_secret, projectID) {
 			// Masuk ke reverse proxy
 			proxy := httputil.NewSingleHostReverseProxy(proxyUrl)
+			proxy.Director = func(req *http.Request) {
+				req.Header = r.Header
+				req.Host = proxyUrl.Host
+				req.URL.Scheme = proxyUrl.Scheme
+				req.URL.Host = proxyUrl.Host
+				req.URL.Path = r.URL.Path
+			}
 			proxy.ServeHTTP(w, r)
 		} else {
 			deleteCookieScript := `<script>
