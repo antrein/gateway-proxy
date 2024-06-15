@@ -217,17 +217,19 @@ func addScriptHTML(htmlContent, projectID string) string {
 		registerQueue();
 	} else if (!hasCookie('antrein_authorization') && hasCookie('antrein_waiting_room')) {
         const token = cookieMap.get('antrein_waiting_room');
-		const source = new EventSource("https://api.antrein.com/bc/queue/wr?token="+token);
-        source.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data){
-                countdown.innerHTML = formatDuration(data.time_remaining)
-                if (data.main_room_token && data.main_room_token != "" && data.is_finished) {
-					document.cookie = 'antrein_authorization=' + data.main_room_token + '; path=/; SameSite=Lax';
-                    window.location.reload();
-                }
-            }
-        };
+		if (typeof (EventSource) !== "undefined") {
+			const source = new EventSource("https://api.antrein.com/bc/queue/wr?token="+token);
+			source.onmessage = function(event) {
+				const data = JSON.parse(event.data);
+				if (data){
+					countdown.innerHTML = formatDuration(data.time_remaining)
+					if (data.main_room_token && data.main_room_token != "" && data.is_finished) {
+						document.cookie = 'antrein_authorization=' + data.main_room_token + '; path=/; SameSite=Lax';
+						window.location.reload();
+					}
+				}
+			}
+		}
 	}
 
 	updateLastUpdated();
