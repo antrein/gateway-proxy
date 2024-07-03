@@ -21,7 +21,7 @@ WORKDIR /root/
 # Copy the built application from the builder stage
 COPY --from=builder /app/gateway-proxy .
 
-# Copy HTML files into the container
+# Copy HTML files into the container.
 COPY --from=builder /app/template.html ./template.html
 
 EXPOSE 8080
