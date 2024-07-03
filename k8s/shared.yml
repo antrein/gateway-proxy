@@ -22,7 +22,7 @@ spec:
         - containerPort: 8080
         env:
         - name: SERVICE_URL
-          value: "https://<project_domain>/<url_path>"
+          value: "https://<project_domain><url_path>"
         - name: TOKEN_SECRET
           value: "CTPVqgse4sEwcPXEKUYXXeZhioDb5BnM"
         - name: PROJECT_ID
