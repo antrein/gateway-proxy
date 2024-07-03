@@ -18,6 +18,7 @@ func main() {
 	infra_mode := os.Getenv("INFRA_MODE")
 	token_secret := os.Getenv("TOKEN_SECRET")
 	projectID := os.Getenv("PROJECT_ID")
+	url_path := os.Getenv("URL_PATH")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
 
 	var target string
@@ -58,7 +59,7 @@ func main() {
 				req.Host = proxyUrl.Host
 				req.URL.Scheme = proxyUrl.Scheme
 				req.URL.Host = proxyUrl.Host
-				req.URL.Path = r.URL.Path
+				req.URL.Path = url_path
 			}
 			proxy.ServeHTTP(w, r)
 		} else {
