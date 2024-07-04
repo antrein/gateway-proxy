@@ -65,7 +65,7 @@ spec:
   ingressClassName: nginx
   rules:
   rules:
-  - host: <project_id>.antrein.com
+  - host: <project_id>.antrein.cloud
     http:
       paths:
       - path: /
@@ -77,5 +77,5 @@ spec:
               number: 8080
   tls:
   - hosts:
-    - <project_id>.antrein.com
+    - <project_id>.antrein.cloud
     secretName: <project_id>-redirect-tls
