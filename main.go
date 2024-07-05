@@ -16,17 +16,21 @@ import (
 
 func main() {
 	infra_mode := os.Getenv("INFRA_MODE")
+	be_mode := os.Getenv("BE_MODE")
 	token_secret := os.Getenv("TOKEN_SECRET")
 	projectID := os.Getenv("PROJECT_ID")
 	url_path := os.Getenv("URL_PATH")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
+	based_url := "https://api.antrein.com"
 
 	var target string
 
 	if infra_mode == "multi" {
 		target = os.Getenv("SERVICE_URL")
+		based_url = "https://" + projectID + ".api.antrein.com" + "/" + be_mode
 	} else {
-		target = os.Getenv("SERVICE_URL") // ubah jadi get url data dari db
+		target = os.Getenv("SERVICE_URL") // ubah jadi get url data dari
+		based_url = based_url + "/" + be_mode
 	}
 
 	log.Printf("Starting reverse proxy from to %s", target)
@@ -43,7 +47,7 @@ func main() {
 			serveErrorHTML(w, "Failed to fetch HTML content")
 			return
 		}
-		htmlContent := addScriptHTML(html, projectID)
+		htmlContent := addScriptHTML(html, projectID, based_url)
 		auth, err := r.Cookie("antrein_authorization")
 		if err != nil || auth == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -145,7 +149,7 @@ func loadDefaultHTML() (string, error) {
 	return string(content), nil
 }
 
-func addScriptHTML(htmlContent, projectID string) string {
+func addScriptHTML(htmlContent, projectID, baseURL string) string {
 	script := `
     <script>
 	const cookies = document.cookie;
@@ -191,7 +195,7 @@ func addScriptHTML(htmlContent, projectID string) string {
 
 	async function registerQueue() {
 		try {
-			const response = await fetch('https://api.antrein.com/bc/queue/register?project_id={project_id}');
+			const response = await fetch('{be_url}/queue/register?project_id={project_id}');
 			if (!response.ok) {
 				throw new Error('HTTP error! status: ' + response.status);
 			}
@@ -219,7 +223,7 @@ func addScriptHTML(htmlContent, projectID string) string {
 	} else if (!hasCookie('antrein_authorization') && hasCookie('antrein_waiting_room')) {
         const token = cookieMap.get('antrein_waiting_room');
 		if (typeof (EventSource) !== "undefined") {
-			const source = new EventSource("https://api.antrein.com/bc/queue/wr?token="+token);
+			const source = new EventSource("{be_url}/queue/wr?token="+token);
 			source.onmessage = function(event) {
 				const data = JSON.parse(event.data);
 				if (data){
@@ -243,7 +247,10 @@ func addScriptHTML(htmlContent, projectID string) string {
 		}, 10000);
 	};
 </script>`
-	return htmlContent + strings.Replace(script, "{project_id}", projectID, 1)
+
+	script = strings.Replace(script, "{project_id}", projectID, -1)
+	script = strings.Replace(script, "{be_url}", baseURL, -1)
+	return htmlContent + script
 }
 
 func fetchHTMLContent(url string) (string, error) {
