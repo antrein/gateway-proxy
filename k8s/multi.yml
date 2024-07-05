@@ -29,6 +29,8 @@ spec:
           value: <project_id>
         - name: URL_PATH
           value: <url_path>
+        - name: BE_MODE
+          value: <be_mode>
         - name: INFRA_MODE
           value: <infra_mode>
         - name: BASE_URL
