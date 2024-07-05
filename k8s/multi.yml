@@ -31,6 +31,8 @@ spec:
           value: <url_path>
         - name: INFRA_MODE
           value: <infra_mode>
+        - name: BASE_URL
+          value: <base_url>
 ---
 apiVersion: v1
 kind: Service
@@ -67,7 +69,7 @@ spec:
   ingressClassName: nginx
   rules:
   rules:
-  - host: <project_id>.antrein5.com
+  - host: <project_id>.<base_url>
     http:
       paths:
       - path: /
@@ -79,5 +81,5 @@ spec:
               number: 8080
   tls:
   - hosts:
-    - <project_id>.antrein5.com
+    - <project_id>.<base_url>
     secretName: <project_id>-redirect-tls

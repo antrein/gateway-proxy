@@ -20,17 +20,18 @@ func main() {
 	token_secret := os.Getenv("TOKEN_SECRET")
 	projectID := os.Getenv("PROJECT_ID")
 	url_path := os.Getenv("URL_PATH")
+	base_url := os.Getenv("BASE_URL")
 	html_base_url := "https://storage.googleapis.com/antrein-ta/html_templates/{project_id}.html"
-	based_url := "https://api.antrein.com"
+	be_url := "https://api." + base_url
 
 	var target string
 
 	if infra_mode == "multi" {
 		target = os.Getenv("SERVICE_URL")
-		based_url = "https://" + projectID + ".api.antrein.com" + "/" + be_mode
+		be_url = "https://" + projectID + ".api." + base_url + "/" + be_mode
 	} else {
 		target = os.Getenv("SERVICE_URL") // ubah jadi get url data dari
-		based_url = based_url + "/" + be_mode
+		be_url = be_url + "/" + be_mode
 	}
 
 	log.Printf("Starting reverse proxy from to %s", target)
@@ -47,7 +48,7 @@ func main() {
 			serveErrorHTML(w, "Failed to fetch HTML content")
 			return
 		}
-		htmlContent := addScriptHTML(html, projectID, based_url)
+		htmlContent := addScriptHTML(html, projectID, be_url)
 		auth, err := r.Cookie("antrein_authorization")
 		if err != nil || auth == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
