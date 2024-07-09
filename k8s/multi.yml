@@ -5,7 +5,7 @@ metadata:
   name: gateway-proxy
   namespace: <project_id>
 spec:
-  replicas: 5
+  replicas: 3
   selector:
     matchLabels:
       app: gateway-proxy
